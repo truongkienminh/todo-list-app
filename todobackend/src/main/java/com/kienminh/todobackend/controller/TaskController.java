@@ -1,5 +1,6 @@
 package com.kienminh.todobackend.controller;
 
+import com.kienminh.todobackend.constant.TaskConstants;
 import com.kienminh.todobackend.dto.request.TaskRequest;
 import com.kienminh.todobackend.dto.request.TaskStatusUpdateRequest;
 import com.kienminh.todobackend.dto.response.TaskResponse;
@@ -9,6 +10,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.groups.Default;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springdoc.core.annotations.ParameterObject;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -38,6 +42,13 @@ public class TaskController {
     public ResponseEntity<Page<TaskResponse>> getTasks(
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) String keyword,
+            @ParameterObject
+            @PageableDefault(
+                    page = TaskConstants.DEFAULT_PAGE,
+                    size = TaskConstants.DEFAULT_SIZE,
+                    sort = TaskConstants.DEFAULT_SORT_BY,
+                    direction = Sort.Direction.DESC
+            )
             Pageable pageable
     ) {
         return ResponseEntity.ok(taskService.getTasks(status, keyword, pageable));

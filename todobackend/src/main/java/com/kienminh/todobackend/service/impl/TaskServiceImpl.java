@@ -8,17 +8,14 @@ import com.kienminh.todobackend.enums.TaskStatus;
 import com.kienminh.todobackend.exception.TaskNotFoundException;
 import com.kienminh.todobackend.mapper.TaskMapper;
 import com.kienminh.todobackend.repository.TaskRepository;
+import com.kienminh.todobackend.repository.specification.TaskSpecifications;
 import com.kienminh.todobackend.service.TaskService;
-import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 @Service
 @Transactional
@@ -75,7 +72,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional(readOnly = true)
     public Page<TaskResponse> getTasks(TaskStatus status, String keyword, Pageable pageable) {
-        Specification<Task> specification = buildTaskSpecification(status, keyword);
+        Specification<Task> specification = TaskSpecifications.withFilters(status, keyword);
         return taskRepository.findAll(specification, pageable)
                 .map(taskMapper::toResponse);
     }
@@ -93,31 +90,6 @@ public class TaskServiceImpl implements TaskService {
     private Task findTaskByIdOrThrow(Long id) {
         return taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));
-    }
-
-    private Specification<Task> buildTaskSpecification(TaskStatus status, String keyword) {
-        return (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (status != null) {
-                predicates.add(criteriaBuilder.equal(root.get("status"), status));
-            }
-
-            if (StringUtils.hasText(keyword)) {
-                String normalizedKeyword = "%" + keyword.trim().toLowerCase() + "%";
-                Predicate titlePredicate = criteriaBuilder.like(
-                        criteriaBuilder.lower(root.get("title")),
-                        normalizedKeyword
-                );
-                Predicate descriptionPredicate = criteriaBuilder.like(
-                        criteriaBuilder.lower(root.get("description")),
-                        normalizedKeyword
-                );
-                predicates.add(criteriaBuilder.or(titlePredicate, descriptionPredicate));
-            }
-
-            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
-        };
     }
 
     private void synchronizeCompletedAt(Task task, TaskStatus status) {
