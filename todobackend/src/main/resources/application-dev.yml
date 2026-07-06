@@ -13,4 +13,4 @@ logging:
     com.kienminh.todobackend: DEBUG
 
 server:
-  port: 8081
+  port: 8080
