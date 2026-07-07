@@ -58,7 +58,7 @@ export function getPriorityClasses(priority: TaskPriority): string {
     case "HIGH":
       return "bg-rose-100 text-rose-700 ring-1 ring-inset ring-rose-200";
     case "MEDIUM":
-      return "bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200";
+      return "bg-yellow-100 text-yellow-800 ring-1 ring-inset ring-yellow-200";
     case "LOW":
       return "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200";
     default:
