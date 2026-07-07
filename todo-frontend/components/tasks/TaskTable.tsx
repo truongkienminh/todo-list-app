@@ -1,13 +1,13 @@
-import { getPriorityClasses, getPriorityLabel, formatDisplayDate } from "@/lib/task-presenter";
+import { StatusBadge } from "@/components/tasks/StatusBadge";
+import { formatDisplayDate, getPriorityClasses, getPriorityLabel } from "@/services/task/task-presenter";
 import type { Task } from "@/types/task";
-
-import { StatusBadge } from "@/components/StatusBadge";
 
 interface TaskTableProps {
   tasks: Task[];
+  onEdit: (task: Task) => void;
 }
 
-export function TaskTable({ tasks }: TaskTableProps) {
+export function TaskTable({ tasks, onEdit }: TaskTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="min-w-full divide-y divide-slate-200">
@@ -18,6 +18,7 @@ export function TaskTable({ tasks }: TaskTableProps) {
             <th className="px-4 py-3">Ưu tiên</th>
             <th className="px-4 py-3">Hạn xử lý</th>
             <th className="px-4 py-3">Ngày tạo</th>
+            <th className="px-4 py-3 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
@@ -36,6 +37,15 @@ export function TaskTable({ tasks }: TaskTableProps) {
               </td>
               <td className="px-4 py-4">{formatDisplayDate(task.dueDate)}</td>
               <td className="px-4 py-4">{formatDisplayDate(task.createdAt)}</td>
+              <td className="px-4 py-4 text-right">
+                <button
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                  onClick={() => onEdit(task)}
+                  type="button"
+                >
+                  Sửa
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

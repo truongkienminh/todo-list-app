@@ -25,7 +25,7 @@ export function Pagination({
   const safeCurrentPage = totalPages > 0 ? number + 1 : 1;
 
   return (
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-slate-600">
         Trang {safeCurrentPage}/{safeTotalPages}
       </p>

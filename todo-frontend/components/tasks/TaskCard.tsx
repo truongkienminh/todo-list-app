@@ -1,13 +1,13 @@
-import { getPriorityClasses, getPriorityLabel, formatDisplayDate } from "@/lib/task-presenter";
+import { StatusBadge } from "@/components/tasks/StatusBadge";
+import { formatDisplayDate, getPriorityClasses, getPriorityLabel } from "@/services/task/task-presenter";
 import type { Task } from "@/types/task";
-
-import { StatusBadge } from "@/components/StatusBadge";
 
 interface TaskCardProps {
   task: Task;
+  onEdit: (task: Task) => void;
 }
 
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ task, onEdit }: TaskCardProps) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -34,6 +34,16 @@ export function TaskCard({ task }: TaskCardProps) {
           <dd className="mt-1 font-medium text-slate-700">{formatDisplayDate(task.dueDate)}</dd>
         </div>
       </dl>
+
+      <div className="mt-4 flex justify-end">
+        <button
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+          onClick={() => onEdit(task)}
+          type="button"
+        >
+          Sửa
+        </button>
+      </div>
     </article>
   );
 }
