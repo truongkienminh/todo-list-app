@@ -7,6 +7,9 @@ interface TaskListProps {
   isLoading: boolean;
   showSkeleton: boolean;
   onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onToggleComplete: (task: Task) => void;
+  loadingTaskIds: ReadonlySet<number>;
 }
 
 function TaskListSkeleton({ rows = 4 }: { rows?: number }) {
@@ -84,7 +87,15 @@ function EmptyState() {
   );
 }
 
-export function TaskList({ tasks, isLoading, onEdit, showSkeleton }: TaskListProps) {
+export function TaskList({
+  tasks,
+  isLoading,
+  onEdit,
+  onDelete,
+  onToggleComplete,
+  showSkeleton,
+  loadingTaskIds,
+}: TaskListProps) {
   if (showSkeleton) {
     return <TaskListSkeleton rows={4} />;
   }
@@ -97,11 +108,24 @@ export function TaskList({ tasks, isLoading, onEdit, showSkeleton }: TaskListPro
         ) : (
           <>
             <div className="hidden md:block">
-              <TaskTable onEdit={onEdit} tasks={tasks} />
+              <TaskTable
+                loadingTaskIds={loadingTaskIds}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                onToggleComplete={onToggleComplete}
+                tasks={tasks}
+              />
             </div>
             <div className="space-y-3 md:hidden">
               {tasks.map((task) => (
-                <TaskCard key={task.id} onEdit={onEdit} task={task} />
+                <TaskCard
+                  key={task.id}
+                  isTaskLoading={loadingTaskIds.has(task.id)}
+                  onDelete={onDelete}
+                  onEdit={onEdit}
+                  onToggleComplete={onToggleComplete}
+                  task={task}
+                />
               ))}
             </div>
           </>
