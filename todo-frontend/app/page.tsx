@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { TaskFormModal } from "@/components/tasks/TaskFormModal";
 import { TaskList } from "@/components/tasks/TaskList";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { Toast } from "@/components/ui/Toast";
 import { ApiError } from "@/lib/api-client";
-import { getTasks } from "@/services/task/task-service";
-import type { Page, Task } from "@/types/task";
+import { changeStatus, deleteTask, getTasks } from "@/services/task/task-service";
+import type { Page, Task, TaskStatus } from "@/types/task";
 
 const sortOptions = [
   { value: "createdAt,desc", label: "Ngày tạo mới nhất" },
@@ -24,6 +25,16 @@ type ModalState =
   | { mode: "edit"; task: Task }
   | null;
 
+type ToastState = {
+  message: string;
+  variant: "success" | "error";
+} | null;
+
+type ConfirmDeleteState = {
+  id: number;
+  title: string;
+} | null;
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     return error.message;
@@ -36,6 +47,40 @@ function getErrorMessage(error: unknown): string {
   return "Không thể tải danh sách công việc.";
 }
 
+function updateTaskInPage(
+  currentPage: Page<Task> | null,
+  taskId: number,
+  updater: (task: Task) => Task,
+): Page<Task> | null {
+  if (!currentPage) {
+    return currentPage;
+  }
+
+  return {
+    ...currentPage,
+    content: currentPage.content.map((task) => (task.id === taskId ? updater(task) : task)),
+  };
+}
+
+function removeTaskFromPage(currentPage: Page<Task> | null, taskId: number): Page<Task> | null {
+  if (!currentPage) {
+    return currentPage;
+  }
+
+  const nextContent = currentPage.content.filter((task) => task.id !== taskId);
+  const nextTotalElements = Math.max(0, currentPage.totalElements - 1);
+  const nextTotalPages = nextTotalElements === 0 ? 0 : Math.ceil(nextTotalElements / currentPage.size);
+
+  return {
+    ...currentPage,
+    content: nextContent,
+    totalElements: nextTotalElements,
+    totalPages: nextTotalPages,
+    first: currentPage.number === 0,
+    last: nextTotalPages === 0 ? true : currentPage.number >= nextTotalPages - 1,
+  };
+}
+
 export default function HomePage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -45,8 +90,11 @@ export default function HomePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [modalState, setModalState] = useState<ModalState>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastState, setToastState] = useState<ToastState>(null);
+  const [confirmDeleteState, setConfirmDeleteState] = useState<ConfirmDeleteState>(null);
+  const [loadingTaskIds, setLoadingTaskIds] = useState<Set<number>>(() => new Set());
   const requestSequence = useRef(0);
+  const loadingTaskIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const currentRequest = requestSequence.current + 1;
@@ -60,7 +108,6 @@ export default function HomePage() {
           return;
         }
 
-        console.log("Fetched tasks from backend:", response);
         setTaskPage(response);
         setErrorMessage(null);
       })
@@ -69,7 +116,6 @@ export default function HomePage() {
           return;
         }
 
-        console.error("Failed to fetch tasks:", error);
         setErrorMessage(getErrorMessage(error));
       })
       .finally(() => {
@@ -80,6 +126,97 @@ export default function HomePage() {
         setIsLoading(false);
       });
   }, [page, reloadKey, size, sort]);
+
+  function addLoadingTaskId(taskId: number) {
+    loadingTaskIdsRef.current = new Set(loadingTaskIdsRef.current).add(taskId);
+    setLoadingTaskIds((current) => {
+      const next = new Set(current);
+      next.add(taskId);
+      return next;
+    });
+  }
+
+  function removeLoadingTaskId(taskId: number) {
+    const nextLoadingTaskIds = new Set(loadingTaskIdsRef.current);
+    nextLoadingTaskIds.delete(taskId);
+    loadingTaskIdsRef.current = nextLoadingTaskIds;
+
+    setLoadingTaskIds((current) => {
+      const next = new Set(current);
+      next.delete(taskId);
+      return next;
+    });
+  }
+
+  async function handleToggleComplete(task: Task) {
+    if (loadingTaskIdsRef.current.has(task.id)) {
+      return;
+    }
+
+    const nextStatus: TaskStatus = task.status === "COMPLETED" ? "PENDING" : "COMPLETED";
+    const previousTask = { ...task };
+
+    addLoadingTaskId(task.id);
+    setTaskPage((current) =>
+      updateTaskInPage(current, task.id, (currentTask) => ({
+        ...currentTask,
+        status: nextStatus,
+        completedAt: nextStatus === "COMPLETED" ? new Date().toISOString() : null,
+      })),
+    );
+
+    try {
+      const updatedTask = await changeStatus(task.id, nextStatus);
+      setTaskPage((current) => updateTaskInPage(current, task.id, () => updatedTask));
+    } catch (error: unknown) {
+      setTaskPage((current) => updateTaskInPage(current, task.id, () => previousTask));
+      setToastState({
+        message: getErrorMessage(error),
+        variant: "error",
+      });
+    } finally {
+      removeLoadingTaskId(task.id);
+    }
+  }
+
+  function handleDeleteRequest(task: Task) {
+    if (loadingTaskIdsRef.current.has(task.id)) {
+      return;
+    }
+
+    setConfirmDeleteState({
+      id: task.id,
+      title: task.title,
+    });
+  }
+
+  async function handleConfirmDelete() {
+    if (!confirmDeleteState || loadingTaskIdsRef.current.has(confirmDeleteState.id)) {
+      return;
+    }
+
+    const taskId = confirmDeleteState.id;
+    const shouldMoveToPreviousPage = page > 0 && (taskPage?.content.length ?? 0) === 1;
+
+    setConfirmDeleteState(null);
+    addLoadingTaskId(taskId);
+
+    try {
+      await deleteTask(taskId);
+      setTaskPage((current) => removeTaskFromPage(current, taskId));
+
+      if (shouldMoveToPreviousPage) {
+        setPage((current) => Math.max(0, current - 1));
+      }
+    } catch (error: unknown) {
+      setToastState({
+        message: getErrorMessage(error),
+        variant: "error",
+      });
+    } finally {
+      removeLoadingTaskId(taskId);
+    }
+  }
 
   const showSkeleton = isLoading && taskPage === null;
   const showInlineError = errorMessage !== null && taskPage !== null;
@@ -160,7 +297,10 @@ export default function HomePage() {
               <div className="mt-6">
                 <TaskList
                   isLoading={isLoading && taskPage !== null}
+                  loadingTaskIds={loadingTaskIds}
+                  onDelete={handleDeleteRequest}
                   onEdit={(task) => setModalState({ mode: "edit", task })}
+                  onToggleComplete={handleToggleComplete}
                   showSkeleton={showSkeleton}
                   tasks={taskPage?.content ?? []}
                 />
@@ -192,7 +332,10 @@ export default function HomePage() {
           onClose={() => setModalState(null)}
           onSuccess={(message, options) => {
             setModalState(null);
-            setToastMessage(message);
+            setToastState({
+              message,
+              variant: "success",
+            });
 
             if (options?.resetToFirstPage && page !== 0) {
               setPage(0);
@@ -205,8 +348,22 @@ export default function HomePage() {
         />
       ) : null}
 
-      {toastMessage ? (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      {confirmDeleteState ? (
+        <ConfirmDialog
+          message={`Bạn có chắc muốn xóa công việc '${confirmDeleteState.title}'?`}
+          onCancel={() => setConfirmDeleteState(null)}
+          onConfirm={() => {
+            void handleConfirmDelete();
+          }}
+        />
+      ) : null}
+
+      {toastState ? (
+        <Toast
+          message={toastState.message}
+          onClose={() => setToastState(null)}
+          variant={toastState.variant}
+        />
       ) : null}
     </>
   );
