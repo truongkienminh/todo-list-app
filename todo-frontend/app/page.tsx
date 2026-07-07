@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import { SearchBar } from "@/components/tasks/SearchBar";
 import { StatusFilter } from "@/components/tasks/StatusFilter";
@@ -84,7 +84,7 @@ function removeTaskFromPage(currentPage: Page<Task> | null, taskId: number): Pag
   };
 }
 
-export default function HomePage() {
+function HomePageContent() {
   const { filters, setKeyword, setPage, setSize, setSort, setStatus } = useTaskFilters();
   const [taskPage, setTaskPage] = useState<Page<Task> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -382,5 +382,29 @@ export default function HomePage() {
         />
       ) : null}
     </>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur sm:p-8">
+            <div className="h-8 w-40 animate-pulse rounded bg-slate-200" />
+            <div className="mt-4 h-5 w-72 animate-pulse rounded bg-slate-200" />
+            <div className="mt-6 h-14 animate-pulse rounded-xl bg-slate-200" />
+            <div className="mt-4 h-10 w-80 animate-pulse rounded-xl bg-slate-200" />
+            <div className="mt-6 space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-28 animate-pulse rounded-xl bg-slate-200" />
+              ))}
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <HomePageContent />
+    </Suspense>
   );
 }
