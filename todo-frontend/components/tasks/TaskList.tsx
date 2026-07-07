@@ -1,27 +1,27 @@
+import { TaskCard } from "@/components/tasks/TaskCard";
+import { TaskTable } from "@/components/tasks/TaskTable";
 import type { Task } from "@/types/task";
-
-import { TaskCard } from "@/components/TaskCard";
-import { TaskTable } from "@/components/TaskTable";
 
 interface TaskListProps {
   tasks: Task[];
   isLoading: boolean;
   showSkeleton: boolean;
+  onEdit: (task: Task) => void;
 }
 
 function TaskListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <>
       <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
-        <div className="grid grid-cols-5 gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3">
-          {Array.from({ length: 5 }).map((_, index) => (
+        <div className="grid grid-cols-6 gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3">
+          {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="h-4 animate-pulse rounded bg-slate-200" />
           ))}
         </div>
         <div className="divide-y divide-slate-200">
           {Array.from({ length: rows }).map((_, index) => (
-            <div key={index} className="grid grid-cols-5 gap-4 px-4 py-4">
-              {Array.from({ length: 5 }).map((__, cellIndex) => (
+            <div key={index} className="grid grid-cols-6 gap-4 px-4 py-4">
+              {Array.from({ length: 6 }).map((__, cellIndex) => (
                 <div
                   key={cellIndex}
                   className="h-4 animate-pulse rounded bg-slate-200"
@@ -84,7 +84,7 @@ function EmptyState() {
   );
 }
 
-export function TaskList({ tasks, isLoading, showSkeleton }: TaskListProps) {
+export function TaskList({ tasks, isLoading, onEdit, showSkeleton }: TaskListProps) {
   if (showSkeleton) {
     return <TaskListSkeleton rows={4} />;
   }
@@ -97,11 +97,11 @@ export function TaskList({ tasks, isLoading, showSkeleton }: TaskListProps) {
         ) : (
           <>
             <div className="hidden md:block">
-              <TaskTable tasks={tasks} />
+              <TaskTable onEdit={onEdit} tasks={tasks} />
             </div>
             <div className="space-y-3 md:hidden">
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCard key={task.id} onEdit={onEdit} task={task} />
               ))}
             </div>
           </>
