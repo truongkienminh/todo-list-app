@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { SearchBar } from "@/components/tasks/SearchBar";
+import { StatusFilter } from "@/components/tasks/StatusFilter";
 import { TaskFormModal } from "@/components/tasks/TaskFormModal";
 import { TaskList } from "@/components/tasks/TaskList";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { Toast } from "@/components/ui/Toast";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { ApiError } from "@/lib/api-client";
 import { changeStatus, deleteTask, getTasks } from "@/services/task/task-service";
 import type { Page, Task, TaskStatus } from "@/types/task";
@@ -82,9 +85,7 @@ function removeTaskFromPage(currentPage: Page<Task> | null, taskId: number): Pag
 }
 
 export default function HomePage() {
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
-  const [sort, setSort] = useState("createdAt,desc");
+  const { filters, setKeyword, setPage, setSize, setSort, setStatus } = useTaskFilters();
   const [taskPage, setTaskPage] = useState<Page<Task> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -102,7 +103,13 @@ export default function HomePage() {
 
     setIsLoading(true);
 
-    void getTasks({ page, size, sort })
+    void getTasks({
+      keyword: filters.keyword || undefined,
+      page: filters.page,
+      size: filters.size,
+      sort: filters.sort,
+      status: filters.status,
+    })
       .then((response) => {
         if (requestSequence.current !== currentRequest) {
           return;
@@ -125,7 +132,7 @@ export default function HomePage() {
 
         setIsLoading(false);
       });
-  }, [page, reloadKey, size, sort]);
+  }, [filters.keyword, filters.page, filters.size, filters.sort, filters.status, reloadKey]);
 
   function addLoadingTaskId(taskId: number) {
     loadingTaskIdsRef.current = new Set(loadingTaskIdsRef.current).add(taskId);
@@ -196,7 +203,7 @@ export default function HomePage() {
     }
 
     const taskId = confirmDeleteState.id;
-    const shouldMoveToPreviousPage = page > 0 && (taskPage?.content.length ?? 0) === 1;
+    const shouldMoveToPreviousPage = filters.page > 0 && (taskPage?.content.length ?? 0) === 1;
 
     setConfirmDeleteState(null);
     addLoadingTaskId(taskId);
@@ -206,7 +213,7 @@ export default function HomePage() {
       setTaskPage((current) => removeTaskFromPage(current, taskId));
 
       if (shouldMoveToPreviousPage) {
-        setPage((current) => Math.max(0, current - 1));
+        setPage(filters.page - 1);
       }
     } catch (error: unknown) {
       setToastState({
@@ -225,45 +232,57 @@ export default function HomePage() {
     <>
       <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur sm:p-8">
-          <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Todo List</h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Danh sách công việc được tải từ backend Spring Boot.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-                onClick={() => setModalState({ mode: "create" })}
-                type="button"
-              >
-                Thêm công việc
-              </button>
-
-              <div className="rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
-                Tổng công việc: <span className="font-semibold">{taskPage?.totalElements ?? 0}</span>
+          <div className="border-b border-slate-200 pb-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 className="text-3xl font-semibold text-slate-900">Todo List</h1>
+                <p className="mt-2 text-sm text-slate-600">
+                  Danh sách công việc được tải từ backend Spring Boot.
+                </p>
               </div>
 
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                <span>Sắp xếp</span>
-                <select
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400"
-                  disabled={isLoading && taskPage === null}
-                  onChange={(event) => {
-                    setSort(event.target.value);
-                    setPage(0);
-                  }}
-                  value={sort}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                  onClick={() => setModalState({ mode: "create" })}
+                  type="button"
                 >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  Thêm công việc
+                </button>
+
+                <div className="rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
+                  Tổng công việc: <span className="font-semibold">{taskPage?.totalElements ?? 0}</span>
+                </div>
+
+                <label className="flex flex-col gap-2 text-sm text-slate-600">
+                  <span>Sắp xếp</span>
+                  <select
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400"
+                    disabled={isLoading && taskPage === null}
+                    onChange={(event) => setSort(event.target.value)}
+                    value={filters.sort}
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-4">
+              <SearchBar
+                disabled={showSkeleton}
+                keyword={filters.keyword}
+                onKeywordChange={setKeyword}
+              />
+              <StatusFilter
+                disabled={showSkeleton}
+                onChange={setStatus}
+                value={filters.status}
+              />
             </div>
           </div>
 
@@ -312,12 +331,9 @@ export default function HomePage() {
                   first={taskPage?.first ?? true}
                   last={taskPage?.last ?? true}
                   number={taskPage?.number ?? 0}
-                  onPageChange={(nextPage) => setPage(nextPage)}
-                  onSizeChange={(nextSize) => {
-                    setSize(nextSize);
-                    setPage(0);
-                  }}
-                  size={size}
+                  onPageChange={setPage}
+                  onSizeChange={setSize}
+                  size={filters.size}
                   totalPages={taskPage?.totalPages ?? 0}
                 />
               </div>
@@ -337,7 +353,7 @@ export default function HomePage() {
               variant: "success",
             });
 
-            if (options?.resetToFirstPage && page !== 0) {
+            if (options?.resetToFirstPage && filters.page !== 0) {
               setPage(0);
               return;
             }
