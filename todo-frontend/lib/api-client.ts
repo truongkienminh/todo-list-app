@@ -1,4 +1,4 @@
-import { ApiErrorResponse } from "@/types/task";
+import type { ApiErrorResponse } from "@/types/task";
 
 export class ApiError extends Error {
   status: number;

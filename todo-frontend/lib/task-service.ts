@@ -1,5 +1,5 @@
 import { fetchJson } from "@/lib/api-client";
-import { Page, Task, TaskRequest, TaskStatus, TaskStatusUpdateRequest } from "@/types/task";
+import type { Page, Task, TaskRequest, TaskStatus, TaskStatusUpdateRequest } from "@/types/task";
 
 interface GetTasksParams {
   status?: TaskStatus;
